@@ -1,0 +1,53 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install @capacitor/core@^7.4.3 @capacitor/android@^7.4.3 @capacitor/cli@^7.4.3
+      - name: Build React
+        run: npm run build
+      - name: Create Capacitor JSON config
+        run: |
+          rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.selva.smartcalculator",
+            "appName": "Selva Smart Calculator",
+            "webDir": "dist",
+            "bundledWebRuntime": false
+          }
+          EOF
+      - name: Add Android
+        run: npx cap add android
+      - name: Sync Android
+        run: npx cap sync android
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: selva-smart-calculator-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
